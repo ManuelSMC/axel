@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "qRoB9IrhVDKAjrDzfzRsZ2FIc+F0RXDMMj9m5AJkC9A=",
+  "Source": "chilaquiles-dotnet",
+  "BasePath": "_content/chilaquiles-dotnet",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
