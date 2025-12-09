@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "uk9npERaThtTW0r5K0ip8eNNKgXajMrFZJFecNb1bxA=",
+  "Source": "chilaquiles-dotnet-odbc",
+  "BasePath": "_content/chilaquiles-dotnet-odbc",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

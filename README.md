@@ -1,10 +1,11 @@
 # Proyecto Chilaquiles
 
-Este workspace contiene tres aplicaciones:
+Este workspace ahora está dividido en TRES backends separados (uno por tecnología de conexión) para que puedas ejecutar en laptops distintas el mismo frontend y la misma BD (mismo esquema):
 
-- `chilaquiles-java` (Spring Boot): API REST con JDBC a MySQL.
-- `chilaquiles-dotnet` (ASP.NET Core .NET 8): API REST con ADO.NET (MySqlConnector) y opción ODBC.
-- `chilaquiles-ui` (React + Vite): Frontend con tabla, filtros y detalle, con toggle para consultar Java o .NET.
+- `chilaquiles-java` (Spring Boot): JDBC → MySQL.
+- `chilaquiles-dotnet-ado` (ASP.NET Core .NET 8): ADO.NET → MySQL.
+- `chilaquiles-dotnet-odbc` (ASP.NET Core .NET 8): ODBC → MySQL (via DSN).
+- `chilaquiles-ui` (React + Vite): Frontend con selector JDBC / ADO.NET / ODBC.
 
 ## Esquema de Base de Datos
 Tabla: `chilaquiles`
@@ -17,13 +18,31 @@ Campos:
 - `spiciness` TINYINT (0-5)
 - `price` DECIMAL(10,2)
 - `createdAt` DATETIME
+- `is_active` TINYINT(1) DEFAULT 1  
+  (alta/baja lógica)
+
+Tabla: `users`
+
+Campos:
+- `id` INT PK AUTO_INCREMENT
+- `full_name` VARCHAR(120)
+- `username` VARCHAR(60) UNIQUE
+- `password_hash` VARCHAR(128)  
+  (usa SHA-256 con salt o bcrypt; evita guardar contraseñas en claro)
+
+Seed opcional:
+```sql
+INSERT INTO users(full_name, username, password_hash)
+VALUES ('Usuario Demo', 'demo', SHA2(CONCAT('salt:', 'Demo.123'), 256));
+```
 
 ## Variables de entorno
-Crea `.env` en cada proyecto con:
+Copia `.env.example` a `.env` en la raíz del frontend y ajusta URLs (puertos recomendados):
 
-- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`
-- Para .NET: `DB_DRIVER=ado|odbc` y si usas ODBC: DSN `AXEL_DSN`
-- Para UI: `VITE_API_SOURCE=java|dotnet`, `VITE_JAVA_API_URL`, `VITE_DOTNET_API_URL`
+- UI: `VITE_API_SOURCE=jdbc|ado|odbc`, `VITE_JDBC_API_URL=http://localhost:8080/api`, `VITE_ADO_API_URL=http://localhost:5001/api`, `VITE_ODBC_API_URL=http://localhost:5002/api`.
+- Java (JDBC): `JAVA_MYSQL_*` para conexión local a MySQL.
+- .NET ADO.NET: `MYSQL_*` (host, puerto, base, user, password).
+- .NET ODBC: `ODBC_DSN` (por defecto `AXEL_DSN`).
 
 ## Comandos rápidos (PowerShell)
 
@@ -37,7 +56,8 @@ CREATE TABLE IF NOT EXISTS chilaquiles(\
   protein ENUM('pollo','res','huevo','queso','sin-proteina'), \
   spiciness TINYINT, \
   price DECIMAL(10,2), \
-  createdAt DATETIME\
+  createdAt DATETIME, \
+  is_active TINYINT(1) DEFAULT 1\
 ); \
 INSERT INTO chilaquiles(name,salsaType,protein,spiciness,price,createdAt) VALUES \
 ('Clásicos Verdes','verde','pollo',3,95.00,NOW()), \
@@ -49,16 +69,16 @@ INSERT INTO chilaquiles(name,salsaType,protein,spiciness,price,createdAt) VALUES
 - Instala "MySQL ODBC 8.0".
 - ODBC Data Sources (64-bit) → System DSN → Add → "MySQL ODBC 8.0" → Nombre `AXEL_DSN`.
 
-### Backend .NET 8
+### Backend .NET 8 (separados)
+- ADO.NET
 ```powershell
-cd c:\Users\manue\Documents\axel
-dotnet new webapi -n chilaquiles-dotnet
-cd chilaquiles-dotnet
-dotnet add package MySqlConnector
-dotnet add package System.Data.Odbc
-# Configura appsettings.Development.json con la cadena ADO.NET
-# Ejecuta
-dotnet run
+cd c:\Users\manue\Documents\axel\chilaquiles-dotnet-ado
+dotnet restore; dotnet run --urls http://localhost:5001
+```
+- ODBC (requiere DSN `AXEL_DSN`)
+```powershell
+cd c:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc
+$env:ODBC_DSN="AXEL_DSN"; dotnet restore; dotnet run --urls http://localhost:5002
 ```
 
 ### Backend Java (Spring Boot)
@@ -76,22 +96,27 @@ mvn spring-boot:run
 ### Frontend React (Vite)
 ```powershell
 cd c:\Users\manue\Documents\axel
-npm create vite@latest chilaquiles-ui -- --template react
 cd chilaquiles-ui
 npm install
 npm install axios
+copy ..\.env.example .env  # o crea tu .env
 npm run dev
 ```
 
-## Ejecución local (sin Docker)
-- Levanta MySQL localmente y aplica el seed de datos (comando arriba).
-- Arranca `chilaquiles-java` con `mvn spring-boot:run` (puerto 8080).
-- Arranca `chilaquiles-dotnet` con `dotnet run` (puerto 5000 configurable).
-- Arranca `chilaquiles-ui` con `npm run dev` (puerto 5173) y configura `VITE_API_SOURCE` en `.env`.
+## Escenarios por laptop
+- Laptop A: BD local + UI + Backend JDBC (Java) en `8080`.
+- Laptop B: BD local + UI + Backend ADO.NET (.NET) en `5001`.
+- Laptop C: BD local + UI + Backend ODBC (.NET) en `5002`.
 
-## Endpoints esperados
-- Java y .NET: `GET /api/chilaquiles?protein=pollo&salsaType=verde&spiciness=2&page=1&pageSize=20`
-- `GET /api/chilaquiles/{id}`.
+La BD debe tener el mismo nombre, tabla y campos en cada laptop (no es la misma instancia, pero el mismo esquema/seed).
+
+## Endpoints (Java JDBC)
+- `GET /api/chilaquiles?salsaType=&protein=&spiciness=&includeInactive=false&page=1&pageSize=20`
+- `GET /api/chilaquiles/{id}`
+- `POST /api/chilaquiles` body `{ name, salsaType, protein, spiciness, price }`
+- `PUT /api/chilaquiles/{id}` body `{ name, salsaType, protein, spiciness, price }`
+- `DELETE /api/chilaquiles/{id}` (baja lógica: `is_active=0`)
+- `POST /api/chilaquiles/{id}/restore` (alta lógica: `is_active=1`)
 
 ## Siguientes pasos
 1. Generar los proyectos (Java/.NET/React) con los comandos anteriores.
