@@ -4,6 +4,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using System.Data;
 using MySqlConnector;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,7 @@ builder.WebHost.UseUrls(adoUrl);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
@@ -23,12 +27,39 @@ builder.Services.AddCors(options =>
               .AllowCredentials());
 });
 
+// JWT bearer authentication (centralized issuer)
+var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "chilaquiles-auth";
+var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "chilaquiles-clients";
+var jwtKey = builder.Configuration["JWT_KEY"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "dev-secret-change";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
+
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseRouting();
 app.UseCors("ui");
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Hardcoded driver for this service (ADO.NET)
 
@@ -44,13 +75,14 @@ IDbConnection CreateConnection()
     return new MySqlConnection(cs);
 }
 
-// Simple in-memory sessions: sid -> userId
-var SESSIONS = new Dictionary<string, int>();
-
+// Require JWT auth and resolve current user id claim
 int RequireAuth(HttpContext ctx)
 {
-    var sid = ctx.Request.Cookies["sessionId"];
-    if (sid != null && SESSIONS.TryGetValue(sid, out var uid)) return uid;
+    if (ctx.User?.Identity?.IsAuthenticated == true)
+    {
+        var uidClaim = ctx.User.FindFirst("uid")?.Value;
+        if (int.TryParse(uidClaim, out var uid)) return uid;
+    }
     throw new Exception("UNAUTH");
 }
 
@@ -92,32 +124,11 @@ app.MapPost("/api/auth/register", async (HttpContext ctx, Dictionary<string,stri
     return Results.Ok(new { ok = true });
 });
 
-app.MapPost("/api/auth/login", async (HttpContext ctx, Dictionary<string,string> body) =>
-{
-    var username = body.GetValueOrDefault("username", "");
-    var password = body.GetValueOrDefault("password", "");
-    using var conn = CreateConnection(); await (conn as dynamic).OpenAsync();
-    using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, COALESCE(role,'user') AS role FROM users WHERE username=@u AND password_hash=SHA2(CONCAT('salt:', @p),256) AND IFNULL(is_active,1)=1";
-    var pu = cmd.CreateParameter(); pu.ParameterName = "@u"; pu.Value = username; cmd.Parameters.Add(pu);
-    var pp = cmd.CreateParameter(); pp.ParameterName = "@p"; pp.Value = password; cmd.Parameters.Add(pp);
-    using var r = await (cmd as dynamic).ExecuteReaderAsync();
-    if (await r.ReadAsync())
-    {
-        var uid = r.GetInt32(0); var role = r.GetString(1);
-        var sid = Guid.NewGuid().ToString(); SESSIONS[sid] = uid;
-        ctx.Response.Cookies.Append("sessionId", sid, new CookieOptions { Path = "/" });
-        return Results.Ok(new { ok = true, role });
-    }
-    return Results.Unauthorized();
-});
+// Login endpoint disabled here; JWT should be issued by central auth service (Java).
+app.MapPost("/api/auth/login", () => Results.StatusCode(501));
 
-app.MapPost("/api/auth/logout", (HttpContext ctx) =>
-{
-    var sid = ctx.Request.Cookies["sessionId"]; if (sid != null) SESSIONS.Remove(sid);
-    ctx.Response.Cookies.Delete("sessionId");
-    return Results.Ok(new { ok = true });
-});
+// Logout is client-side for JWT; server does not manage sessions
+app.MapPost("/api/auth/logout", () => Results.Ok(new { ok = true }));
 
 app.MapGet("/api/me", async (HttpContext ctx) =>
 {

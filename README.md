@@ -7,6 +7,29 @@ Este workspace ahora está dividido en TRES backends separados (uno por tecnolog
 - `chilaquiles-dotnet-odbc` (ASP.NET Core .NET 8): ODBC → MySQL (via DSN).
 - `chilaquiles-ui` (React + Vite): Frontend con selector JDBC / ADO.NET / ODBC.
 
+## Auth central (JWT)
+- Emisor: `JWT_ISSUER` (default `chilaquiles-auth`)
+- Audiencia: `JWT_AUDIENCE` (default `chilaquiles-clients`)
+- Firma: HS256 con clave `JWT_KEY` (string o base64)
+- Claims: `uid` (int, id usuario), `role` (`admin`|`user`), y `iat`/`exp`
+- TTL: 1 hora
+
+Flujo:
+- Java `POST /api/auth/login` devuelve `{ ok, role, token }`.
+- UI guarda `token` y envía `Authorization: Bearer <token>` a TODOS los backends.
+- `POST /api/auth/logout` ahora es no-op (el cliente descarta el token).
+
+Config por laptop (PowerShell):
+```powershell
+setx JWT_ISSUER chilaquiles-auth
+setx JWT_AUDIENCE chilaquiles-clients
+setx JWT_KEY dev-secret-change
+
+# Puertos sugeridos
+setx ASPNETCORE_URLS http://localhost:5001  # ADO
+setx ASPNETCORE_URLS http://localhost:5002  # ODBC
+```
+
 ## Esquema de Base de Datos
 Tabla: `chilaquiles`
 
@@ -40,7 +63,7 @@ VALUES ('Usuario Demo', 'demo', SHA2(CONCAT('salt:', 'Demo.123'), 256));
 Copia `.env.example` a `.env` en la raíz del frontend y ajusta URLs (puertos recomendados):
 
 - UI: `VITE_API_SOURCE=jdbc|ado|odbc`, `VITE_JDBC_API_URL=http://localhost:8080/api`, `VITE_ADO_API_URL=http://localhost:5001/api`, `VITE_ODBC_API_URL=http://localhost:5002/api`.
-- Java (JDBC): `JAVA_MYSQL_*` para conexión local a MySQL.
+- Java (JDBC): `JAVA_MYSQL_*` para conexión local a MySQL. Además usa `JWT_*` para emitir/validar.
 - .NET ADO.NET: `MYSQL_*` (host, puerto, base, user, password).
 - .NET ODBC: `ODBC_DSN` (por defecto `AXEL_DSN`).
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import { api } from './apiClient'
 import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Login from './Login'
 import Register from './Register'
@@ -21,10 +22,15 @@ const Badge = ({ type }) => {
   return <span className={map[type] || 'badge'}>{type}</span>
 }
 
-function isAuthed() { return typeof document !== 'undefined' && document.cookie.includes('sessionId=') }
+function isAuthed() { return typeof localStorage !== 'undefined' && !!localStorage.getItem('token') }
 
 export default function App() {
-  axios.defaults.withCredentials = true
+  // Do not send cookies; we use Bearer tokens
+  axios.defaults.withCredentials = false
+    // Ensure API client does not send cookies
+    if (api && api.defaults) {
+      api.defaults.withCredentials = false
+    }
   const [source, setSource] = useState(apiSource)
   const baseUrl = useMemo(() => {
     if (source === 'ado') return ADO_API_URL
@@ -47,13 +53,28 @@ export default function App() {
   const [actionMsg, setActionMsg] = useState('')
   const [showModal, setShowModal] = useState(false)
 
+  // Verify token by calling /me when app loads or source changes
+  useEffect(() => {
+    if (!isAuthed()) return
+    const verify = async () => {
+      try {
+        await api.get('/me')
+      } catch (e) {
+        // if token invalid, force logout
+        localStorage.removeItem('token')
+        navigate('/login')
+      }
+    }
+    verify()
+  }, [source])
+
   useEffect(() => {
     if (location.pathname !== '/') return
     const load = async () => {
       setLoading(true); setError('')
       try {
         const params = { ...filters, page, pageSize }
-        const res = await axios.get(`${baseUrl}/chilaquiles`, { params })
+        const res = await api.get('/chilaquiles', { params })
         setBackendStatus('ok')
         setItems(res.data)
       } catch (e) {
@@ -70,13 +91,13 @@ export default function App() {
   const submitCreate = async () => {
     setActionMsg('')
     try {
-      await axios.post(`${baseUrl}/chilaquiles`, form)
+      await api.post('/chilaquiles', form)
       setForm(emptyForm)
       setEditingId(null)
       setShowModal(false)
       setActionMsg('Creado correctamente')
       const params = { ...filters, page, pageSize }
-      const res = await axios.get(`${baseUrl}/chilaquiles`, { params })
+      const res = await api.get('/chilaquiles', { params })
       setItems(res.data)
     } catch (e) {
       setActionMsg('Error al crear el registro')
@@ -86,13 +107,13 @@ export default function App() {
   const submitUpdate = async () => {
     setActionMsg('')
     try {
-      await axios.put(`${baseUrl}/chilaquiles/${editingId}`, form)
+      await api.put(`/chilaquiles/${editingId}`, form)
       setForm(emptyForm)
       setEditingId(null)
       setShowModal(false)
       setActionMsg('Actualizado correctamente')
       const params = { ...filters, page, pageSize }
-      const res = await axios.get(`${baseUrl}/chilaquiles`, { params })
+      const res = await api.get('/chilaquiles', { params })
       setItems(res.data)
     } catch (e) {
       setActionMsg('Error al actualizar el registro')
@@ -102,10 +123,10 @@ export default function App() {
   const doDelete = async (id) => {
     setActionMsg('')
     try {
-      await axios.delete(`${baseUrl}/chilaquiles/${id}`)
+      await api.delete(`/chilaquiles/${id}`)
       setActionMsg('Baja lógica aplicada')
       const params = { ...filters, page, pageSize }
-      const res = await axios.get(`${baseUrl}/chilaquiles`, { params })
+      const res = await api.get('/chilaquiles', { params })
       setItems(res.data)
     } catch (e) {
       setActionMsg('Error al aplicar baja lógica')
@@ -115,10 +136,10 @@ export default function App() {
   const doRestore = async (id) => {
     setActionMsg('')
     try {
-      await axios.post(`${baseUrl}/chilaquiles/${id}/restore`)
+      await api.post(`/chilaquiles/${id}/restore`)
       setActionMsg('Alta lógica aplicada')
       const params = { ...filters, page, pageSize }
-      const res = await axios.get(`${baseUrl}/chilaquiles`, { params })
+      const res = await api.get('/chilaquiles', { params })
       setItems(res.data)
     } catch (e) {
       setActionMsg('Error al aplicar alta lógica')
@@ -139,7 +160,7 @@ export default function App() {
               <Link className="link" to="/login">Iniciar sesión</Link>
               <Link className="link" to="/register">Registro</Link>
               <Link className="link" to="/admin">Admin</Link>
-              <a className="link" href="#" onClick={async (e) => { e.preventDefault(); try { await axios.post(`${baseUrl}/auth/logout`, {}, { withCredentials: true }); } catch {} navigate('/login') }}>Cerrar sesión</a>
+              <a className="link" href="#" onClick={async (e) => { e.preventDefault(); try { await api.post('/auth/logout'); localStorage.removeItem('token'); } catch {} navigate('/login') }}>Cerrar sesión</a>
             </div>
           </div>
         </div>

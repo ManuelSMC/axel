@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import axios from 'axios'
+import { api } from './apiClient'
+import { setToken } from './apiClient'
 import { Link } from 'react-router-dom'
 
 export default function Login({ baseUrl, onLoggedIn }) {
@@ -13,8 +14,12 @@ export default function Login({ baseUrl, onLoggedIn }) {
     e.preventDefault()
     setLoading(true); setError('')
     try {
-      const res = await axios.post(`${baseUrl}/auth/login`, { username, password }, { withCredentials: true })
+      const res = await api.post('/auth/login', { username, password })
       const role = res?.data?.role || 'user'
+      const token = res?.data?.token
+      if (token) {
+        setToken(token)
+      }
       setSuccess('Inicio de sesión correcto. Redirigiendo…')
       setTimeout(() => {
         if (role === 'admin') onLoggedIn('/admin')
@@ -49,6 +54,6 @@ export default function Login({ baseUrl, onLoggedIn }) {
           </form>
         </div>
       </div>
-    </div>
+      </div>
   )
 }

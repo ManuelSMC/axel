@@ -17,6 +17,11 @@ import java.util.UUID;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.SignatureException;
 
 @SpringBootApplication
 public class ChilaquilesApplication {
@@ -27,13 +32,15 @@ public class ChilaquilesApplication {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        // Permite origen específico cuando se usan credenciales (cookies)
-        config.setAllowedOrigins(java.util.List.of("http://localhost:5173"));
-        config.addAllowedHeader("*");
+        // Acepta cualquier origen (JWT via header; sin cookies)
+        config.setAllowedOriginPatterns(java.util.List.of("*"));
+        // Permite todos los métodos y cabeceras para evitar fallos de preflight
         config.addAllowedMethod("*");
-        config.setAllowCredentials(true);
-        // Opcional: cabeceras expuestas
-        config.setExposedHeaders(java.util.List.of("Set-Cookie"));
+        config.addAllowedHeader("*");
+        // Opcional: cachear preflight en el navegador
+        config.setMaxAge(3600L);
+        // Con JWT Bearer no usamos cookies; deshabilitar credenciales
+        config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -50,16 +57,41 @@ class ApiController {
 
     // Health endpoint removed per request
 
-    // In-memory sessions: sessionId -> userId
-    private static final java.util.concurrent.ConcurrentHashMap<String, Integer> SESSIONS = new java.util.concurrent.ConcurrentHashMap<>();
+    // JWT settings (issuer/audience/key) from env or defaults
+    private String jwtIssuer() { return System.getenv().getOrDefault("JWT_ISSUER", "chilaquiles-auth"); }
+    private String jwtAudience() { return System.getenv().getOrDefault("JWT_AUDIENCE", "chilaquiles-clients"); }
+    private byte[] jwtKey() {
+        String key = System.getenv().getOrDefault("JWT_KEY", "dev-secret-change");
+        // if base64 provided, decode; else use raw string bytes
+        try { return Decoders.BASE64.decode(key); } catch (Exception e) { return key.getBytes(java.nio.charset.StandardCharsets.UTF_8); }
+    }
 
     private Integer requireAuth(HttpServletRequest request) {
-        if (request.getCookies() != null) {
-            for (Cookie c : request.getCookies()) {
-                if ("sessionId".equals(c.getName())) {
-                    Integer uid = SESSIONS.get(c.getValue());
-                    if (uid != null) return uid;
+        String auth = request.getHeader("Authorization");
+        if (auth != null && auth.startsWith("Bearer ")) {
+            String token = auth.substring(7);
+            try {
+                io.jsonwebtoken.JwtParser parser = Jwts.parserBuilder()
+                        .setSigningKey(Keys.hmacShaKeyFor(jwtKey()))
+                        .requireIssuer(jwtIssuer())
+                        .requireAudience(jwtAudience())
+                        .build();
+                io.jsonwebtoken.Claims claims = parser.parseClaimsJws(token).getBody();
+                Object uidObj = claims.get("uid");
+                if (uidObj instanceof Integer) {
+                    return (Integer) uidObj;
                 }
+                // If serialized as String/Long
+                if (uidObj instanceof String) {
+                    String s = (String) uidObj;
+                    if (!s.isBlank()) return Integer.parseInt(s);
+                }
+                if (uidObj instanceof Number) {
+                    Number n = (Number) uidObj;
+                    return n.intValue();
+                }
+            } catch (io.jsonwebtoken.JwtException ex) {
+                // invalid token
             }
         }
         throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED);
@@ -99,13 +131,18 @@ class ApiController {
         }
         int userId = (Integer) rows.get(0).get("id");
         String role = (String) rows.get(0).get("role");
-        String sid = UUID.randomUUID().toString();
-        SESSIONS.put(sid, userId);
-        Cookie cookie = new Cookie("sessionId", sid);
-        cookie.setPath("/");
-        cookie.setHttpOnly(false); // demo; en producción true
-        response.addCookie(cookie);
-        return Map.of("ok", true, "role", role);
+        Instant now = Instant.now();
+        String token = Jwts.builder()
+                .setIssuer(jwtIssuer())
+                .setAudience(jwtAudience())
+                .setSubject("user:" + userId)
+                .claim("uid", userId)
+                .claim("role", role)
+                .setIssuedAt(java.util.Date.from(now))
+                .setExpiration(java.util.Date.from(now.plusSeconds(3600)))
+                .signWith(Keys.hmacShaKeyFor(jwtKey()), SignatureAlgorithm.HS256)
+                .compact();
+        return Map.of("ok", true, "role", role, "token", token);
     }
     @GetMapping("/me")
     public Map<String, Object> me(HttpServletRequest request) {
@@ -202,17 +239,8 @@ class ApiController {
     }
 
     @PostMapping("/auth/logout")
-    public Map<String, Object> logout(HttpServletRequest request, HttpServletResponse response) {
-        if (request.getCookies() != null) {
-            for (Cookie c : request.getCookies()) {
-                if ("sessionId".equals(c.getName())) {
-                    SESSIONS.remove(c.getValue());
-                    Cookie del = new Cookie("sessionId", "");
-                    del.setMaxAge(0); del.setPath("/");
-                    response.addCookie(del);
-                }
-            }
-        }
+    public Map<String, Object> logout() {
+        // JWT logout is client-side (discard token)
         return Map.of("ok", true);
     }
 

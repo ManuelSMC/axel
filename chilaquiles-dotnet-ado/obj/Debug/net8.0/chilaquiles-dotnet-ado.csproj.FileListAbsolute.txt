@@ -30,3 +30,11 @@ C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\obj\Debug\net8.0\refint\chi
 C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\obj\Debug\net8.0\chilaquiles-dotnet-ado.pdb
 C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\obj\Debug\net8.0\chilaquiles-dotnet-ado.genruntimeconfig.cache
 C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\obj\Debug\net8.0\ref\chilaquiles-dotnet-ado.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-ado\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll

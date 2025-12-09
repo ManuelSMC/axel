@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import axios from 'axios'
+import { api } from './apiClient'
 import { Navigate } from 'react-router-dom'
 
 export default function Admin({ baseUrl }) {
@@ -15,10 +15,10 @@ export default function Admin({ baseUrl }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const meRes = await axios.get(`${baseUrl}/me`, { withCredentials: true })
+        const meRes = await api.get('/me')
         setMe(meRes.data)
         if (meRes.data.role !== 'admin') { setLoading(false); return }
-        const res = await axios.get(`${baseUrl}/admin/users`, { withCredentials: true, params: { includeInactive } })
+        const res = await api.get('/admin/users', { params: { includeInactive } })
         setUsers(res.data)
       } catch (e) {
         setError('No autorizado o error al cargar usuarios')
@@ -30,10 +30,10 @@ export default function Admin({ baseUrl }) {
   const createUser = async () => {
     setMsg('')
     try {
-      await axios.post(`${baseUrl}/admin/users`, form, { withCredentials: true })
+      await api.post('/admin/users', form)
       setMsg('Usuario creado correctamente')
       setForm({ fullName: '', username: '', password: '', role: 'user' })
-      const res = await axios.get(`${baseUrl}/admin/users`, { withCredentials: true, params: { includeInactive } })
+      const res = await api.get('/admin/users', { params: { includeInactive } })
       setUsers(res.data)
     } catch (e) { setMsg('Error al crear usuario') }
   }
@@ -42,10 +42,10 @@ export default function Admin({ baseUrl }) {
     if (!editing) return
     setMsg('')
     try {
-      await axios.put(`${baseUrl}/admin/users/${editing.id}`, { role: editing.role, fullName: editing.fullName, username: editing.username }, { withCredentials: true })
+      await api.put(`/admin/users/${editing.id}`, { role: editing.role, fullName: editing.fullName, username: editing.username })
       setMsg('Usuario actualizado correctamente')
       setEditing(null)
-      const res = await axios.get(`${baseUrl}/admin/users`, { withCredentials: true, params: { includeInactive } })
+      const res = await api.get('/admin/users', { params: { includeInactive } })
       setUsers(res.data)
     } catch (e) { setMsg('Error al actualizar usuario') }
   }
@@ -53,9 +53,9 @@ export default function Admin({ baseUrl }) {
   const deactivateUser = async (id) => {
     setMsg('')
     try {
-      await axios.delete(`${baseUrl}/admin/users/${id}`, { withCredentials: true })
+      await api.delete(`/admin/users/${id}`)
       setMsg('Usuario desactivado')
-      const res = await axios.get(`${baseUrl}/admin/users`, { withCredentials: true, params: { includeInactive } })
+      const res = await api.get('/admin/users', { params: { includeInactive } })
       setUsers(res.data)
     } catch (e) { setMsg('Error al desactivar usuario') }
   }
@@ -63,9 +63,9 @@ export default function Admin({ baseUrl }) {
   const restoreUser = async (id) => {
     setMsg('')
     try {
-      await axios.post(`${baseUrl}/admin/users/${id}/restore`, {}, { withCredentials: true })
+      await api.post(`/admin/users/${id}/restore`)
       setMsg('Usuario restaurado')
-      const res = await axios.get(`${baseUrl}/admin/users`, { withCredentials: true, params: { includeInactive } })
+      const res = await api.get('/admin/users', { params: { includeInactive } })
       setUsers(res.data)
     } catch (e) { setMsg('Error al restaurar usuario') }
   }

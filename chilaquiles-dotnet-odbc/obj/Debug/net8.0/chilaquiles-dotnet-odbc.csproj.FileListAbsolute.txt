@@ -38,3 +38,11 @@ C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\obj\Debug\net8.0\refint\ch
 C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\obj\Debug\net8.0\chilaquiles-dotnet-odbc.pdb
 C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\obj\Debug\net8.0\chilaquiles-dotnet-odbc.genruntimeconfig.cache
 C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\obj\Debug\net8.0\ref\chilaquiles-dotnet-odbc.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet-odbc\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll
