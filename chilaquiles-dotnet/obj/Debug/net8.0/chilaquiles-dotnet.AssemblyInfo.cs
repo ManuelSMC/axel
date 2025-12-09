@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("chilaquiles-dotnet")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0b626ea76995368a4ded3134d830bb0b0c87bb7c")]
 [assembly: System.Reflection.AssemblyProductAttribute("chilaquiles-dotnet")]
 [assembly: System.Reflection.AssemblyTitleAttribute("chilaquiles-dotnet")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

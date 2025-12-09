@@ -42,7 +42,7 @@ class ApiController {
     JdbcTemplate jdbc;
 
     @GetMapping("/health")
-    public Map<String, String> health() { return Map.of("status", "ok"); }
+    public Map<String, String> health() { return Map.of("status", "ok", "driver", "jdbc"); }
 
     @GetMapping("/chilaquiles")
         public List<Map<String, Object>> list(

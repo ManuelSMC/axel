@@ -38,3 +38,4 @@ C:\Users\manue\Documents\axel\chilaquiles-dotnet\obj\Debug\net8.0\refint\chilaqu
 C:\Users\manue\Documents\axel\chilaquiles-dotnet\obj\Debug\net8.0\chilaquiles-dotnet.pdb
 C:\Users\manue\Documents\axel\chilaquiles-dotnet\obj\Debug\net8.0\chilaquiles-dotnet.genruntimeconfig.cache
 C:\Users\manue\Documents\axel\chilaquiles-dotnet\obj\Debug\net8.0\ref\chilaquiles-dotnet.dll
+C:\Users\manue\Documents\axel\chilaquiles-dotnet\obj\Debug\net8.0\chilaquiles-dotnet.sourcelink.json

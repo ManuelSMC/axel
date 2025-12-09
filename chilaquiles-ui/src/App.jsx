@@ -20,6 +20,7 @@ export default function App() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [backendInfo, setBackendInfo] = useState({ driver: '' })
 
   const [filters, setFilters] = useState({ salsaType: '', protein: '', spiciness: '' })
   const [page, setPage] = useState(1)
@@ -29,6 +30,9 @@ export default function App() {
     const load = async () => {
       setLoading(true); setError('')
       try {
+        // fetch backend health/driver
+        const health = await axios.get(`${baseUrl}/health`)
+        setBackendInfo({ driver: health.data?.driver || '' })
         const params = { ...filters, page, pageSize }
         const res = await axios.get(`${baseUrl}/chilaquiles`, { params })
         setItems(res.data)
@@ -48,6 +52,16 @@ export default function App() {
           <div style={{ flex: 1 }}>
             <h1 className="title">Chilaquiles</h1>
             <p className="subtitle">Explora combinaciones de salsa, proteína y picor en un UI moderno.</p>
+            {source === 'dotnet' && (
+              <p className="subtitle" style={{ marginTop: 6 }}>
+                Backend .NET: {backendInfo.driver === 'odbc' ? 'ODBC' : 'ADO.NET'}
+              </p>
+            )}
+            {source === 'java' && (
+              <p className="subtitle" style={{ marginTop: 6 }}>
+                Backend Java: JDBC
+              </p>
+            )}
           </div>
           <img alt="Chilaquiles" src="https://imgs.search.brave.com/DLL6__zDVNQcr_m2mTk257fK5GD7Ji4QG50zDS-1NrM/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4u/ZHJpYmJibGUuY29t/L3VzZXJ1cGxvYWQv/MzM1MzEyNzgvZmls/ZS9vcmlnaW5hbC02/OTUyZDg5ZWRmYmI3/ODQzMjYxY2Y0MGJk/MmJhY2EwYS5wbmc_/Zm9ybWF0PXdlYnAm/cmVzaXplPTQwMHgz/MDAmdmVydGljYWw9/Y2VudGVy" className="hero-img" />
         </div>

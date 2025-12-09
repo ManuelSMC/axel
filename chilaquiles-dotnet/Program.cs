@@ -23,14 +23,21 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors();
 
-app.MapGet("/api/health", () => new { status = "ok" });
+// Resolve driver from multiple env var names
+string resolvedDriverForHealth() => (Environment.GetEnvironmentVariable("DB_DRIVER")
+    ?? Environment.GetEnvironmentVariable("db_driver")
+    ?? "ado").ToLower();
+app.MapGet("/api/health", () => new { status = "ok", driver = resolvedDriverForHealth() });
 
-string driver = Environment.GetEnvironmentVariable("DB_DRIVER") ?? "ado"; // ado|odbc
-string host = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "localhost";
-string port = Environment.GetEnvironmentVariable("MYSQL_PORT") ?? "3306";
-string database = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "axel";
-string user = Environment.GetEnvironmentVariable("MYSQL_USER") ?? "root";
-string password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "Hola.123";
+string driver = Environment.GetEnvironmentVariable("DB_DRIVER")
+    ?? Environment.GetEnvironmentVariable("db_driver")
+    ?? "ado"; // ado|odbc
+Console.WriteLine($"[Chilaquiles .NET] Using driver: {driver}");
+string host = "localhost";
+string port = "3306";
+string database = "axel";
+string user = "root";
+string password = "Axel120018-";
 
 IDbConnection CreateConnection()
 {
@@ -54,20 +61,69 @@ app.MapGet("/api/chilaquiles", async (string? salsaType, string? protein, string
     await (conn as dynamic).OpenAsync();
 
     var cmd = conn.CreateCommand();
+
+    bool isOdbc = conn is OdbcConnection;
     var where = new List<string>();
-    if (!string.IsNullOrEmpty(salsaType)) { where.Add("salsaType = @salsaType"); var p = cmd.CreateParameter(); p.ParameterName = "@salsaType"; p.Value = salsaType; cmd.Parameters.Add(p); }
-    if (!string.IsNullOrEmpty(protein)) { where.Add("protein = @protein"); var p = cmd.CreateParameter(); p.ParameterName = "@protein"; p.Value = protein; cmd.Parameters.Add(p); }
+    var paramValues = new List<object>();
+
+    if (!string.IsNullOrEmpty(salsaType))
+    {
+        where.Add(isOdbc ? "salsaType = ?" : "salsaType = @salsaType");
+        if (isOdbc)
+        {
+            paramValues.Add(salsaType);
+        }
+        else
+        {
+            var p = cmd.CreateParameter(); p.ParameterName = "@salsaType"; p.Value = salsaType; cmd.Parameters.Add(p);
+        }
+    }
+    if (!string.IsNullOrEmpty(protein))
+    {
+        where.Add(isOdbc ? "protein = ?" : "protein = @protein");
+        if (isOdbc)
+        {
+            paramValues.Add(protein);
+        }
+        else
+        {
+            var p = cmd.CreateParameter(); p.ParameterName = "@protein"; p.Value = protein; cmd.Parameters.Add(p);
+        }
+    }
     if (!string.IsNullOrEmpty(spiciness))
     {
         if (int.TryParse(spiciness, out var sp))
         {
-            where.Add("spiciness = @spiciness"); var p = cmd.CreateParameter(); p.ParameterName = "@spiciness"; p.Value = sp; cmd.Parameters.Add(p);
+            where.Add(isOdbc ? "spiciness = ?" : "spiciness = @spiciness");
+            if (isOdbc)
+            {
+                paramValues.Add(sp);
+            }
+            else
+            {
+                var p = cmd.CreateParameter(); p.ParameterName = "@spiciness"; p.Value = sp; cmd.Parameters.Add(p);
+            }
         }
     }
+
     string whereSql = where.Count > 0 ? (" WHERE " + string.Join(" AND ", where)) : "";
-    cmd.CommandText = $"SELECT id,name,salsaType,protein,spiciness,price,createdAt FROM chilaquiles{whereSql} ORDER BY id LIMIT @limit OFFSET @offset";
-    var pl = cmd.CreateParameter(); pl.ParameterName = "@limit"; pl.Value = pageSizeVal; cmd.Parameters.Add(pl);
-    var po = cmd.CreateParameter(); po.ParameterName = "@offset"; po.Value = offset; cmd.Parameters.Add(po);
+
+    if (isOdbc)
+    {
+        // ODBC uses positional markers and does not support named params;
+        // MySQL ODBC also does not allow binding LIMIT/OFFSET, so inline validated integers.
+        cmd.CommandText = $"SELECT id,name,salsaType,protein,spiciness,price,createdAt FROM chilaquiles{whereSql} ORDER BY id LIMIT {pageSizeVal} OFFSET {offset}";
+        foreach (var val in paramValues)
+        {
+            var p = cmd.CreateParameter(); p.Value = val; cmd.Parameters.Add(p);
+        }
+    }
+    else
+    {
+        cmd.CommandText = $"SELECT id,name,salsaType,protein,spiciness,price,createdAt FROM chilaquiles{whereSql} ORDER BY id LIMIT @limit OFFSET @offset";
+        var pl = cmd.CreateParameter(); pl.ParameterName = "@limit"; pl.Value = pageSizeVal; cmd.Parameters.Add(pl);
+        var po = cmd.CreateParameter(); po.ParameterName = "@offset"; po.Value = offset; cmd.Parameters.Add(po);
+    }
 
     var list = new List<object>();
     using var reader = await (cmd as dynamic).ExecuteReaderAsync();
@@ -92,8 +148,16 @@ app.MapGet("/api/chilaquiles/{id:int}", async (int id) =>
     using var conn = CreateConnection();
     await (conn as dynamic).OpenAsync();
     var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id,name,salsaType,protein,spiciness,price,createdAt FROM chilaquiles WHERE id = @id";
-    var p = cmd.CreateParameter(); p.ParameterName = "@id"; p.Value = id; cmd.Parameters.Add(p);
+    if (conn is OdbcConnection)
+    {
+        cmd.CommandText = "SELECT id,name,salsaType,protein,spiciness,price,createdAt FROM chilaquiles WHERE id = ?";
+        var p = cmd.CreateParameter(); p.Value = id; cmd.Parameters.Add(p);
+    }
+    else
+    {
+        cmd.CommandText = "SELECT id,name,salsaType,protein,spiciness,price,createdAt FROM chilaquiles WHERE id = @id";
+        var p = cmd.CreateParameter(); p.ParameterName = "@id"; p.Value = id; cmd.Parameters.Add(p);
+    }
     using var reader = await (cmd as dynamic).ExecuteReaderAsync();
     if (await reader.ReadAsync())
     {
