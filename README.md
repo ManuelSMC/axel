@@ -183,3 +183,6 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
 )
+
+INSERT INTO users (full_name, username, password_hash, role, is_active)
+VALUES ('Administrador', 'admin', SHA2(CONCAT('salt:', 'Hola.123'), 256), 'admin', 1);
