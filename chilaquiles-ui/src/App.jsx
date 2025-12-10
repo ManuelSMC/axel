@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import { api } from './apiClient'
+import { api, setApiBase } from './apiClient'
 import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Login from './Login'
 import Register from './Register'
@@ -69,6 +69,8 @@ export default function App() {
   }, [source])
 
   useEffect(() => {
+    // Update API base when source changes
+    setApiBase(baseUrl)
     if (location.pathname !== '/') return
     const load = async () => {
       setLoading(true); setError('')

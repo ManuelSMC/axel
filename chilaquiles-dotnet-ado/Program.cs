@@ -24,13 +24,15 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials());
+              .DisallowCredentials());
 });
 
 // JWT bearer authentication (centralized issuer)
 var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "chilaquiles-auth";
 var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "chilaquiles-clients";
-var jwtKey = builder.Configuration["JWT_KEY"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "dev-secret-change";
+var jwtKeyStr = builder.Configuration["JWT_KEY"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "dev-secret-change";
+byte[] jwtKeyBytes;
+try { jwtKeyBytes = Convert.FromBase64String(jwtKeyStr); } catch { jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKeyStr); }
 
 builder.Services.AddAuthentication(options =>
 {
@@ -48,7 +50,21 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes),
+        ClockSkew = TimeSpan.Zero
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = ctx =>
+        {
+            Console.WriteLine($"[JWT] Auth failed: {ctx.Exception?.GetType().Name} - {ctx.Exception?.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = ctx =>
+        {
+            Console.WriteLine("[JWT] Token validated");
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -295,6 +311,84 @@ app.MapGet("/api/chilaquiles/{id:int}", async (HttpContext ctx, int id) =>
         };
         return Results.Ok(item);
     }
+    return Results.NotFound();
+});
+
+// Create chilaquiles
+app.MapPost("/api/chilaquiles", async (HttpContext ctx, Dictionary<string, System.Text.Json.JsonElement> body) =>
+{
+    try { RequireAuth(ctx); } catch { return Results.Unauthorized(); }
+    string name = body.ContainsKey("name") ? (body["name"].ValueKind == System.Text.Json.JsonValueKind.String ? body["name"].GetString() ?? "" : body["name"].ToString()) : "";
+    string salsaType = body.ContainsKey("salsaType") ? (body["salsaType"].ValueKind == System.Text.Json.JsonValueKind.String ? body["salsaType"].GetString() ?? "" : body["salsaType"].ToString()) : "";
+    string protein = body.ContainsKey("protein") ? (body["protein"].ValueKind == System.Text.Json.JsonValueKind.String ? body["protein"].GetString() ?? "" : body["protein"].ToString()) : "";
+    int spiciness = body.ContainsKey("spiciness") ? (body["spiciness"].ValueKind == System.Text.Json.JsonValueKind.Number ? body["spiciness"].GetInt32() : int.TryParse(body["spiciness"].ToString(), out var sp) ? sp : 0) : 0;
+    decimal price = body.ContainsKey("price") ? (body["price"].ValueKind == System.Text.Json.JsonValueKind.Number ? body["price"].GetDecimal() : decimal.TryParse(body["price"].ToString(), out var pr) ? pr : 0m) : 0m;
+    if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(salsaType) || string.IsNullOrWhiteSpace(protein))
+        return Results.BadRequest(new { message = "Campos requeridos" });
+    using var conn = CreateConnection(); await (conn as dynamic).OpenAsync();
+    using var cmd = conn.CreateCommand();
+    cmd.CommandText = "INSERT INTO chilaquiles(name,salsaType,protein,spiciness,price,createdAt,is_active) VALUES (@n,@s,@p,@sp,@pr,NOW(),1)";
+    var pn = cmd.CreateParameter(); pn.ParameterName = "@n"; pn.Value = name; pn.DbType = System.Data.DbType.String; cmd.Parameters.Add(pn);
+    var ps = cmd.CreateParameter(); ps.ParameterName = "@s"; ps.Value = salsaType; ps.DbType = System.Data.DbType.String; cmd.Parameters.Add(ps);
+    var pp = cmd.CreateParameter(); pp.ParameterName = "@p"; pp.Value = protein; pp.DbType = System.Data.DbType.String; cmd.Parameters.Add(pp);
+    var psp = cmd.CreateParameter(); psp.ParameterName = "@sp"; psp.Value = spiciness; psp.DbType = System.Data.DbType.Int32; cmd.Parameters.Add(psp);
+    var ppr = cmd.CreateParameter(); ppr.ParameterName = "@pr"; ppr.Value = price; ppr.DbType = System.Data.DbType.Decimal; cmd.Parameters.Add(ppr);
+    var affected = await (cmd as dynamic).ExecuteNonQueryAsync();
+    if (affected == 1)
+    {
+        using var idCmd = conn.CreateCommand(); idCmd.CommandText = "SELECT LAST_INSERT_ID()";
+        using var r = await (idCmd as dynamic).ExecuteReaderAsync();
+        if (await r.ReadAsync())
+            return Results.Ok(new { ok = true, id = r.GetInt32(0) });
+        return Results.Ok(new { ok = true });
+    }
+    return Results.StatusCode(500);
+});
+
+// Update chilaquiles
+app.MapPut("/api/chilaquiles/{id:int}", async (HttpContext ctx, int id, Dictionary<string, System.Text.Json.JsonElement> body) =>
+{
+    try { RequireAuth(ctx); } catch { return Results.Unauthorized(); }
+    string name = body.ContainsKey("name") ? (body["name"].ValueKind == System.Text.Json.JsonValueKind.String ? body["name"].GetString() ?? "" : body["name"].ToString()) : "";
+    string salsaType = body.ContainsKey("salsaType") ? (body["salsaType"].ValueKind == System.Text.Json.JsonValueKind.String ? body["salsaType"].GetString() ?? "" : body["salsaType"].ToString()) : "";
+    string protein = body.ContainsKey("protein") ? (body["protein"].ValueKind == System.Text.Json.JsonValueKind.String ? body["protein"].GetString() ?? "" : body["protein"].ToString()) : "";
+    int spiciness = body.ContainsKey("spiciness") ? (body["spiciness"].ValueKind == System.Text.Json.JsonValueKind.Number ? body["spiciness"].GetInt32() : int.TryParse(body["spiciness"].ToString(), out var sp) ? sp : 0) : 0;
+    decimal price = body.ContainsKey("price") ? (body["price"].ValueKind == System.Text.Json.JsonValueKind.Number ? body["price"].GetDecimal() : decimal.TryParse(body["price"].ToString(), out var pr) ? pr : 0m) : 0m;
+    using var conn = CreateConnection(); await (conn as dynamic).OpenAsync();
+    using var cmd = conn.CreateCommand();
+    cmd.CommandText = "UPDATE chilaquiles SET name=@n, salsaType=@s, protein=@p, spiciness=@sp, price=@pr WHERE id=@id";
+    var pn = cmd.CreateParameter(); pn.ParameterName = "@n"; pn.Value = name; pn.DbType = System.Data.DbType.String; cmd.Parameters.Add(pn);
+    var ps = cmd.CreateParameter(); ps.ParameterName = "@s"; ps.Value = salsaType; ps.DbType = System.Data.DbType.String; cmd.Parameters.Add(ps);
+    var pp = cmd.CreateParameter(); pp.ParameterName = "@p"; pp.Value = protein; pp.DbType = System.Data.DbType.String; cmd.Parameters.Add(pp);
+    var psp = cmd.CreateParameter(); psp.ParameterName = "@sp"; psp.Value = spiciness; psp.DbType = System.Data.DbType.Int32; cmd.Parameters.Add(psp);
+    var ppr = cmd.CreateParameter(); ppr.ParameterName = "@pr"; ppr.Value = price; ppr.DbType = System.Data.DbType.Decimal; cmd.Parameters.Add(ppr);
+    var pid = cmd.CreateParameter(); pid.ParameterName = "@id"; pid.Value = id; pid.DbType = System.Data.DbType.Int32; cmd.Parameters.Add(pid);
+    var affected = await (cmd as dynamic).ExecuteNonQueryAsync();
+    if (affected == 1) return Results.Ok(new { ok = true });
+    return Results.NotFound();
+});
+
+// Soft delete
+app.MapDelete("/api/chilaquiles/{id:int}", async (HttpContext ctx, int id) =>
+{
+    try { RequireAuth(ctx); } catch { return Results.Unauthorized(); }
+    using var conn = CreateConnection(); await (conn as dynamic).OpenAsync();
+    using var cmd = conn.CreateCommand(); cmd.CommandText = "UPDATE chilaquiles SET is_active=0 WHERE id=@id";
+    var p = cmd.CreateParameter(); p.ParameterName = "@id"; p.Value = id; cmd.Parameters.Add(p);
+    var affected = await (cmd as dynamic).ExecuteNonQueryAsync();
+    if (affected == 1) return Results.Ok(new { ok = true });
+    return Results.NotFound();
+});
+
+// Restore
+app.MapPost("/api/chilaquiles/{id:int}/restore", async (HttpContext ctx, int id) =>
+{
+    try { RequireAuth(ctx); } catch { return Results.Unauthorized(); }
+    using var conn = CreateConnection(); await (conn as dynamic).OpenAsync();
+    using var cmd = conn.CreateCommand(); cmd.CommandText = "UPDATE chilaquiles SET is_active=1 WHERE id=@id";
+    var p = cmd.CreateParameter(); p.ParameterName = "@id"; p.Value = id; cmd.Parameters.Add(p);
+    var affected = await (cmd as dynamic).ExecuteNonQueryAsync();
+    if (affected == 1) return Results.Ok(new { ok = true });
     return Results.NotFound();
 });
 

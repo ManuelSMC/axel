@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import axios from 'axios'
+import { api } from './apiClient'
 import { Link } from 'react-router-dom'
 
 export default function Register({ baseUrl, onRegistered }) {
@@ -14,7 +14,7 @@ export default function Register({ baseUrl, onRegistered }) {
     e.preventDefault()
     setLoading(true); setError('')
     try {
-      await axios.post(`${baseUrl}/auth/register`, { fullName, username, password })
+      await api.post('/auth/register', { fullName, username, password })
       setSuccess('Registro completado correctamente. Ahora puedes iniciar sesión.')
       setTimeout(() => onRegistered(), 800)
     } catch (err) {

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("chilaquiles-dotnet-odbc")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+724055284847c7b3540500613c2cab8d9ef7c829")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+84ea6d93c8727ffefbaf1b00a7d7c440c6277b5d")]
 [assembly: System.Reflection.AssemblyProductAttribute("chilaquiles-dotnet-odbc")]
 [assembly: System.Reflection.AssemblyTitleAttribute("chilaquiles-dotnet-odbc")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
