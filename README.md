@@ -170,3 +170,16 @@ UPDATE users SET is_active = 1 WHERE is_active IS NULL;
 $env:JWT_KEY = "q3lXGJcJcA9dPqf0uI6d5EwqBf2A3s7Kp9t0xZy1l2o="
 $env:JWT_ISSUER = "chilaquiles-auth"
 $env:JWT_AUDIENCE = "chilaquiles-clients"
+
+---
+
+CREATE TABLE `users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `full_name` varchar(120) NOT NULL,
+  `username` varchar(60) NOT NULL,
+  `password_hash` varchar(128) NOT NULL,
+  `role` enum('admin','user') NOT NULL DEFAULT 'user',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`)
+)
