@@ -186,3 +186,8 @@ CREATE TABLE `users` (
 
 INSERT INTO users (full_name, username, password_hash, role, is_active)
 VALUES ('Administrador', 'admin', SHA2(CONCAT('salt:', 'Hola.123'), 256), 'admin', 1);
+
+ALTER USER 'root'@'localhost'
+IDENTIFIED WITH mysql_native_password BY 'Axel120018-';
+
+FLUSH PRIVILEGES;
