@@ -60,9 +60,19 @@ export default function App() {
       try {
         await api.get('/me')
       } catch (e) {
-        // if token invalid, force logout
-        localStorage.removeItem('token')
-        navigate('/login')
+        // Do not logout on network/backend-down errors; only on real 401
+        const status = e?.response?.status
+        const isNetwork = e?.code === 'ERR_NETWORK'
+        if (status === 401) {
+          localStorage.removeItem('token')
+          navigate('/login')
+        } else if (isNetwork || (status && status >= 500)) {
+          // backend for this source is down or failing — keep session
+          setBackendStatus('down')
+        } else {
+          // unknown error: keep session and surface in list loader
+          console.debug('[auth] /me check error', e)
+        }
       }
     }
     verify()
