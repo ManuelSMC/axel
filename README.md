@@ -145,3 +145,28 @@ La BD debe tener el mismo nombre, tabla y campos en cada laptop (no es la misma 
 1. Generar los proyectos (Java/.NET/React) con los comandos anteriores.
 2. Implementar repositorios y controladores con filtros y paginación.
 3. Ajustar `.env` y probar en local.
+
+ALTER TABLE chilaquiles ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER createdAt;
+
+
+UPDATE chilaquiles SET is_active = 1 WHERE is_active IS NULL;
+
+
+ALTER TABLE chilaquiles MODIFY createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+
+ALTER TABLE users
+  ADD COLUMN role ENUM('admin','user') NOT NULL DEFAULT 'user' AFTER password_hash;
+
+-- Agrega baja lógica
+ALTER TABLE users
+  ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER role;
+
+-- Inicializa valores por si existían registros previos
+UPDATE users SET role = IFNULL(role, 'user');
+UPDATE users SET is_active = 1 WHERE is_active IS NULL;
+
+
+$env:JWT_KEY = "q3lXGJcJcA9dPqf0uI6d5EwqBf2A3s7Kp9t0xZy1l2o="
+$env:JWT_ISSUER = "chilaquiles-auth"
+$env:JWT_AUDIENCE = "chilaquiles-clients"
